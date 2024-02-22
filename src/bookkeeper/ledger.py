@@ -1,4 +1,5 @@
 import itertools
+from decimal import Decimal
 
 
 class InvalidTransactionError(Exception):
@@ -47,7 +48,16 @@ class Transaction:
 class Entry:
     def __init__(self, account, change, description=None):
         self.account = account
-        self.change = change
+        if isinstance(change,(tuple,list)):
+            self.debits, self.credits = change
+            self.change = self.debits-self.credits
+        else:
+            self.change = change
+            if self.change < 0:
+                self.debits, self.credits = Decimal('0.00'),-change
+            else:
+                self.debits, self.credits = change,Decimal('0.00')
+            
         self.description = description
         self.transaction = None
 

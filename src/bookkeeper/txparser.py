@@ -2,6 +2,9 @@ from lark import Lark, UnexpectedInput, ParseError
 import datetime
 from decimal import Decimal
 from .ledger import Transaction, Entry, InvalidInputError
+import re
+
+re_change = re.compile(r'^[\+\-]?\d+\.\d{2}$')
 
 grammar = r"""
 start: transaction*
@@ -41,13 +44,23 @@ parser = Lark(grammar, propagate_positions=True)
 
 
 def _parse_entry(entry):
+    e = None
     account, change = entry.children[0:2]
     if len(entry.children) > 2:
         description = entry.children[2]
+        z = description.split(None,1)
+        if z and z[0]:
+            r = re_change.match(z[0])
+            if r:
+                change2 = r.group(0)
+                description = z[1].strip()
+                e = Entry(int(account), (Decimal(change), Decimal(change2)), description)
     else:
         description = None
 
-    return Entry(int(account), Decimal(change), description)
+    if not e:
+        e = Entry(int(account), Decimal(change), description)
+    return e
 
 
 def parse(tx_file):

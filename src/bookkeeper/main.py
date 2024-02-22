@@ -46,6 +46,7 @@ def set_numeric_format(numeric_format,numeric_width):
 
 def output_general_ledger(ledger, output):
     nwidth = numeric_width_
+    print("{:>6} {:39} {:10} {:>{}} {:>{}} {:>{}}".format('','','','Debet €',nwidth,'Kredit €',nwidth,'Saldo €',nwidth), file=output)
     for account in sorted(ledger.accounts.values(),
                           key=lambda acc: acc.number):
         if not account.entries:
@@ -53,19 +54,27 @@ def output_general_ledger(ledger, output):
 
         print("{:4} {}".format(account.number,account.name), file=output)
         cumulative = 0
+        debits = 0
+        credits = 0
         for entry in account.entries:
+            debits += entry.debits
+            credits += entry.credits
             cumulative += entry.change
 
             description = entry.description or entry.transaction.description
             if len(description) > 39:
                 description = description[:36] + "..."
 
-            print("{:>6} {:39} {} {:>{}} {:>{}}".
-                      format(entry.transaction.id,description,entry.transaction.date,dformat(entry.change),nwidth,dformat(cumulative),nwidth),
+            print("{:>6} {:39} {} {:>{}} {:>{}} {:>{}}".
+                      format(entry.transaction.id,description,entry.transaction.date,
+                                 dformat(entry.debits),nwidth,
+                                 dformat(entry.credits),nwidth,
+                                 dformat(cumulative),nwidth,
+                                 ),
                       file=output)
         sep = "=" * nwidth
-        print("{:>58}{:>{}}".format('',sep,nwidth*2+1), file=output)
-        print("{:>58}{:>{}}".format('',dformat(account.balance),nwidth*2+1), file=output)
+        print("{:>57}{:>{}}".format('',sep,(nwidth+1)*3), file=output)
+        print("{:>57}{:>{}}".format('',dformat(account.balance),(nwidth+1)*3), file=output)
 
 
 def output_statement(entity, output):
@@ -120,13 +129,32 @@ def output_statement(entity, output):
 
 def output_journal(entity, output):
     nwidth = numeric_width_
+    print("  {:4} {:>{}} {:>{}}".
+              format('','Debet €',nwidth,'Kredit €',nwidth,),
+                file=output)
+    debits = 0
+    credits = 0
     for tx in entity.transactions:
         print("{:<4} {:%Y%m%d} {}".format(tx.id,tx.date,tx.description), file=output)
         for entry in tx.entries:
+            debits += entry.debits
+            credits += entry.credits
             print(
-                "  {} {:>{}} {}".format(entry.account,entry.change,nwidth,entry.description or ''),
+                "  {} {:>{}} {:>{}} {}".format(entry.account,
+                                            dformat(entry.debits),nwidth,
+                                            dformat(entry.credits),nwidth,
+                                            entry.description or ''),
                 file=output)
         print(file=output)
+
+    sep = "=" * nwidth
+    print("  {} {} {}".format('    ',sep,sep),file=output)
+    print(
+        "  {} {:>{}} {:>{}}".format('    ',
+                                           dformat(debits),nwidth,
+                                           dformat(credits),nwidth,
+                                           ),
+        file=output)
 
 
 @click.command()
