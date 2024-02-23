@@ -53,7 +53,7 @@ def _parse_entry(entry):
             r = re_change.match(z[0])
             if r:
                 change2 = r.group(0)
-                description = z[1].strip()
+                description = (z[1:] and z[1].strip()) or ''
                 e = Entry(int(account), (Decimal(change), Decimal(change2)), description)
     else:
         description = None

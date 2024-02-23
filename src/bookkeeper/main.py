@@ -36,17 +36,26 @@ dformats = {
 
 dformat = dformat_plain
 numeric_width_ = 10
+plain_format = True
 
 def set_numeric_format(numeric_format,numeric_width):
-    global dformat,numeric_width_
+    global dformat,numeric_width_,plain_format
     numeric_width_ = numeric_width
     dformat = dformats.get(numeric_format)
+    plain_format = (numeric_format == 'plain')
     if not dformat:
         raise Exception('Illegal numeric format "{}"'.format(numeric_format))
 
 def output_general_ledger(ledger, output):
     nwidth = numeric_width_
     print("{:>6} {:39} {:10} {:>{}} {:>{}} {:>{}}".format('','','','Debet €',nwidth,'Kredit €',nwidth,'Saldo €',nwidth), file=output)
+
+    tot_cumulative = 0
+    tot_debits = 0
+    tot_credits = 0
+
+    sep = "=" * nwidth
+
     for account in sorted(ledger.accounts.values(),
                           key=lambda acc: acc.number):
         if not account.entries:
@@ -61,6 +70,10 @@ def output_general_ledger(ledger, output):
             credits += entry.credits
             cumulative += entry.change
 
+            tot_debits += entry.debits
+            tot_credits += entry.credits
+            tot_cumulative += entry.change
+
             description = entry.description or entry.transaction.description
             if len(description) > 39:
                 description = description[:36] + "..."
@@ -72,9 +85,25 @@ def output_general_ledger(ledger, output):
                                  dformat(cumulative),nwidth,
                                  ),
                       file=output)
-        sep = "=" * nwidth
         print("{:>57}{:>{}}".format('',sep,(nwidth+1)*3), file=output)
         print("{:>57}{:>{}}".format('',dformat(account.balance),(nwidth+1)*3), file=output)
+
+    print("",file=output)
+    print("{:>6} {:39} {:10} {:>{}} {:>{}} {:>{}}".
+              format('','','',
+                         sep,nwidth,
+                         sep,nwidth,
+                         sep,nwidth,
+                         ),
+              file=output)
+
+    print("{:>6} {:39} {:10} {:>{}} {:>{}} {:>{}}".
+              format('','Yhteensä','',
+                         dformat(tot_debits),nwidth,
+                         dformat(tot_credits),nwidth,
+                         dformat(tot_cumulative),nwidth,
+                         ),
+              file=output)
 
 
 def output_statement(entity, output):
@@ -129,9 +158,10 @@ def output_statement(entity, output):
 
 def output_journal(entity, output):
     nwidth = numeric_width_
-    print("  {:4} {:>{}} {:>{}}".
-              format('','Debet €',nwidth,'Kredit €',nwidth,),
-                file=output)
+    if not plain_format:
+        print("  {:4} {:>{}} {:>{}}".
+                  format('','Debet €',nwidth,'Kredit €',nwidth,),
+                  file=output)
     debits = 0
     credits = 0
     for tx in entity.transactions:
@@ -148,13 +178,14 @@ def output_journal(entity, output):
         print(file=output)
 
     sep = "=" * nwidth
-    print("  {} {} {}".format('    ',sep,sep),file=output)
-    print(
-        "  {} {:>{}} {:>{}}".format('    ',
-                                           dformat(debits),nwidth,
-                                           dformat(credits),nwidth,
-                                           ),
-        file=output)
+    if not plain_format:
+        print("  {} {} {}".format('    ',sep,sep),file=output)
+        print(
+            "  {} {:>{}} {:>{}}".format('    ',
+                                               dformat(debits),nwidth,
+                                               dformat(credits),nwidth,
+                                               ),
+            file=output)
 
 
 @click.command()
